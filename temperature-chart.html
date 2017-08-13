@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wykres kołowy</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Roboto');
+
+        body {
+            margin: 10px;
+        }
+
+        svg {
+            border: 1px solid red;
+        }
+
+        .axis.axis-x text {
+            /*fill: #3498db;*/
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    document.write('<script src="http://' + (location.host || 'localhost').split(':')[0] +
+        ':35729/livereload.js?snipver=1"></' + 'script>')
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.5.0/d3.min.js"></script>
+<script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/locale/pl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
+
+<script>
+    console.clear();
+    moment.locale('fr')
+
+    const EXTENT_OFFSET = 0.1;
+    const ANIMATION_DELAY_INC = 25;
+
+    const width = 600;
+    const height = 600;
+
+    const BOUNDS = {
+        minRadius: 100,
+        maxRadius: 200,
+        textRadius: 210
+    };
+
+    const EXTREME_TEMP = {
+        min: -20,
+        max: 30
+    }
+
+    const PI = Math.PI
+    const SCALE = {
+        x: d3.scaleLinear().range([0, 2 * PI]),
+        y: d3.scaleLinear()
+            .range([BOUNDS.minRadius, BOUNDS.maxRadius])
+            .domain([EXTREME_TEMP.min, EXTREME_TEMP.max])
+    }
+
+    const URL = "https://gist.githubusercontent.com/amortka/89472a5ca94acfa538c54f99f7c24cc5/raw/7c69ddabd45d32d287372331b96a49075d9ee62c/weather-wroclaw-2016";
+    const svg = d3.select('body').append('svg').attrs({
+        width,
+        height
+    });
+
+    function getMonths() {
+        const months = d3.range(0, 12).map((d, idx, arr) => {
+            const angle = SCALE.x(idx / arr.length) - PI / 2;
+            const angleSwitch = (angle + PI / 2) > PI ? 180 : 0;
+            const textAnchor = (angleSwitch === 0) ? 'start' : 'end';
+            const p = {
+                x: BOUNDS.textRadius * Math.cos(angle),
+                y: BOUNDS.textRadius * Math.sin(angle)
+            }
+            return {
+                name: moment().month(d).format('MMMM'),
+                p,
+                angle,
+                angleSwitch,
+                textAnchor
+            }
+        })
+        return months
+    }
+
+    function prepareData(rawData) {
+        return {
+            temp: rawData,
+            months: getMonths()
+        }
+    }
+
+    function drawMonthLabels(chart, months) {
+        chart.selectAll('.monthLabel')
+            .data(months)
+            .enter()
+            .append('text')
+            .attrs({
+                'aligment-baseline': 'middle',
+                'text-anchor': d => d.textAnchor,
+                transform: (d, idx, arr) => {
+                    return `translate(${d.p.x}, ${d.p.y}) rotate(${d.angle * 180 / PI}) rotate(${d.angleSwitch})`
+                }
+            })
+            .text(d => d.name)
+    }
+
+    function drawBorder(chart, BOUNDS) {
+        chart.append('circle')
+            .classed('.border', true)
+            .attrs({
+                r: BOUNDS.maxRadius,
+                fill: 'none',
+                stroke: 'red'
+            });
+    }
+
+    function drawZeroLine() {
+
+    }
+
+    d3.csv(URL, (rawData) => {
+        const data = prepareData(rawData)
+        const chart = svg.append('g')
+            .attrs({
+                transform: `translate(${width / 2}, ${height / 2})`
+            })
+        drawBorder(chart, BOUNDS)
+        drawMonthLabels(chart, data.months)
+        drawZeroLine(chart)
+    })
+</script>
+</body>
+</html>
