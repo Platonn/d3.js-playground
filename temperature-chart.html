@@ -47,13 +47,13 @@
     const height = 600;
 
     const BOUNDS = {
-        minRadius: 100,
+        minRadius: 50,
         maxRadius: 200,
         textRadius: 210
     };
 
     const EXTREME_TEMP = {
-        min: -20,
+        min: -15,
         max: 30
     }
 
@@ -76,6 +76,11 @@
             const angle = SCALE.x(idx / arr.length) - PI / 2;
             const angleSwitch = (angle + PI / 2) > PI ? 180 : 0;
             const textAnchor = (angleSwitch === 0) ? 'start' : 'end';
+            const baseLine = [
+                SCALE.y(EXTREME_TEMP.min),
+                SCALE.y(EXTREME_TEMP.max - 1)
+            ]
+            const baseLineAngle = SCALE.x(idx / arr.length);
             const p = {
                 x: BOUNDS.textRadius * Math.cos(angle),
                 y: BOUNDS.textRadius * Math.sin(angle)
@@ -85,7 +90,9 @@
                 p,
                 angle,
                 angleSwitch,
-                textAnchor
+                textAnchor,
+                baseLine,
+                baseLineAngle
             }
         })
         return months
@@ -99,7 +106,9 @@
     }
 
     function drawMonthLabels(chart, months) {
-        chart.selectAll('.monthLabel')
+        chart.append('g')
+            .classed('monthLabels', true)
+            .selectAll('.monthLabel')
             .data(months)
             .enter()
             .append('text')
@@ -113,9 +122,29 @@
             .text(d => d.name)
     }
 
+    function drawMonthBaseLines(chart, months) {
+        chart.append('g')
+            .classed('monthBaseLines', true)
+            .selectAll('.monthBaseLine')
+            .data(months)
+            .enter()
+            .append('line')
+            .attrs({
+                x1: 0,
+                y1: d => d.baseLine[0],
+                x2: 0,
+                y2: d => d.baseLine[1],
+                stroke: 'lightgray',
+                transform: (d, idx, arr) => {
+                    return `rotate(${d.baseLineAngle * 180 / PI})`
+                }
+            })
+    }
+
     function drawBorder(chart, BOUNDS) {
-        chart.append('circle')
-            .classed('.border', true)
+        chart.append('g')
+            .classed('border', true)
+            .append('circle')
             .attrs({
                 r: BOUNDS.maxRadius,
                 fill: 'none',
@@ -123,8 +152,25 @@
             });
     }
 
-    function drawZeroLine() {
+    function drawBaseLine(baseLinesGroup, value) {
+        const baseLineColor = value===0 ? 'black' : 'lightgray'
 
+        baseLinesGroup.append('circle')
+            .classed('.zero-line', true)
+            .attrs({
+                r: SCALE.y(value),
+                fill: 'none',
+                stroke: baseLineColor
+            });
+    }
+
+    function drawBaseLines(chart) {
+        const baseLinesGroup = chart.append('g')
+            .classed('baseLinesGroup', true)
+
+        d3.range(EXTREME_TEMP.min, EXTREME_TEMP.max, 5).map((value => {
+            drawBaseLine(baseLinesGroup, value)
+        }))
     }
 
     d3.csv(URL, (rawData) => {
@@ -135,7 +181,8 @@
             })
         drawBorder(chart, BOUNDS)
         drawMonthLabels(chart, data.months)
-        drawZeroLine(chart)
+        drawMonthBaseLines(chart, data.months)
+        drawBaseLines(chart)
     })
 </script>
 </body>
