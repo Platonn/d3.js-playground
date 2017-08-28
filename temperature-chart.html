@@ -42,9 +42,6 @@
     console.clear();
     moment.locale('fr')
 
-    const EXTENT_OFFSET = 0.1;
-    const ANIMATION_DELAY_INC = 25;
-
     const width = 600;
     const height = 600;
 
@@ -67,13 +64,14 @@
             .domain([EXTREME_TEMP.min, EXTREME_TEMP.max])
     }
     const COLORS = {
-        baseLine: '#3dd4c0',
-        baseLineZero: '#876490',
-        border: '#876490',
-        chart: '#df1c8b',
-        barChart: '#876490',
-        background: '#aeeae1',
-        svgBorder: '2px dashed lightgray'
+        baseLine: '#baffc9',
+        baseLineZero: '#bae1ff',
+        border: '#bae1ff',
+        chart: '#ffb3ba',
+        barChart: '	#ffdfba',
+        background: '#ffffba',
+        svgBorder: '2px dashed lightgray',
+        monthLabel: '#4c3537'
     }
 
     const URL = "https://gist.githubusercontent.com/amortka/89472a5ca94acfa538c54f99f7c24cc5/raw/7c69ddabd45d32d287372331b96a49075d9ee62c/weather-wroclaw-2016";
@@ -138,6 +136,7 @@
                     return `translate(${d.p.x}, ${d.p.y}) rotate(${d.angle * 180 / PI}) rotate(${d.angleSwitch}) scale(0.1)`
                 }
             })
+            .style('color', COLORS.monthLabel)
             .transition()
             .duration(500)
             .delay(1000)
