@@ -11,7 +11,7 @@
         }
 
         svg {
-            border: 1px solid red;
+            border: 1px dashed lightgray;
         }
 
         .axis.axis-x text {
@@ -29,9 +29,11 @@
     document.write('<script src="http://' + (location.host || 'localhost').split(':')[0] +
         ':35729/livereload.js?snipver=1"></' + 'script>')
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.5.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.9.1/d3.min.js"></script>
 <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="https://d3js.org/d3-path.v1.min.js"></script>
+<script src="https://d3js.org/d3-shape.v1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/locale/pl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
@@ -64,12 +66,25 @@
             .range([BOUNDS.minRadius, BOUNDS.maxRadius])
             .domain([EXTREME_TEMP.min, EXTREME_TEMP.max])
     }
+    const COLORS = {
+        baseLine: '#3dd4c0',
+        baseLineZero: '#876490',
+        border: '#876490',
+        chart: '#df1c8b',
+        barChart: '#876490',
+        background: '#aeeae1',
+        svgBorder: '2px dashed lightgray'
+    }
 
     const URL = "https://gist.githubusercontent.com/amortka/89472a5ca94acfa538c54f99f7c24cc5/raw/7c69ddabd45d32d287372331b96a49075d9ee62c/weather-wroclaw-2016";
-    const svg = d3.select('body').append('svg').attrs({
-        width,
-        height
-    });
+    const svg = d3.select('body')
+        .style('background', COLORS.background)
+        .append('svg')
+        .style('border', COLORS.svgBorder)
+        .attrs({
+            width,
+            height
+        });
 
     function getMonths() {
         const months = d3.range(0, 12).map((d, idx, arr) => {
@@ -99,19 +114,33 @@
     }
 
     function prepareData(rawData) {
+        console.log(rawData)
         return {
-            temp: rawData,
+            temp: rawData.map(d => ({
+                time: moment(d.DATE, "YYYY-MM-DD"),
+                tempAvg: parseFloat(d.TAVG) || 0
+            })),
             months: getMonths()
         }
     }
 
-    function drawMonthLabels(chart, months) {
-        chart.append('g')
+    function drawMonthLabels(container, months) {
+        container.append('g')
             .classed('monthLabels', true)
             .selectAll('.monthLabel')
             .data(months)
             .enter()
             .append('text')
+            .attrs({
+                'aligment-baseline': 'middle',
+                'text-anchor': d => d.textAnchor,
+                transform: (d, idx, arr) => {
+                    return `translate(${d.p.x}, ${d.p.y}) rotate(${d.angle * 180 / PI}) rotate(${d.angleSwitch}) scale(0.1)`
+                }
+            })
+            .transition()
+            .duration(500)
+            .delay(1000)
             .attrs({
                 'aligment-baseline': 'middle',
                 'text-anchor': d => d.textAnchor,
@@ -122,8 +151,8 @@
             .text(d => d.name)
     }
 
-    function drawMonthBaseLines(chart, months) {
-        chart.append('g')
+    function drawMonthBaseLines(container, months) {
+        container.append('g')
             .classed('monthBaseLines', true)
             .selectAll('.monthBaseLine')
             .data(months)
@@ -133,30 +162,58 @@
                 x1: 0,
                 y1: d => d.baseLine[0],
                 x2: 0,
+                y2: d => d.baseLine[0],
+                stroke: COLORS.baseLine,
+                transform: (d, idx, arr) => {
+                    return `rotate(${d.baseLineAngle * 180 / PI})`
+                }
+            })
+            .transition()
+            .duration(1000)
+            .delay(500)
+            .attrs({
+                x1: 0,
+                y1: d => d.baseLine[0],
+                x2: 0,
                 y2: d => d.baseLine[1],
-                stroke: 'lightgray',
+                stroke: COLORS.baseLine,
                 transform: (d, idx, arr) => {
                     return `rotate(${d.baseLineAngle * 180 / PI})`
                 }
             })
     }
 
-    function drawBorder(chart, BOUNDS) {
-        chart.append('g')
+    function drawBorder(container, BOUNDS) {
+        container.append('g')
             .classed('border', true)
             .append('circle')
+            .style('opacity', 1)
+            .attrs({
+                r: 0,
+                fill: 'none',
+                stroke: COLORS.border
+            })
+            .transition()
+            .duration(1500)
             .attrs({
                 r: BOUNDS.maxRadius,
                 fill: 'none',
-                stroke: 'red'
-            });
+                stroke: COLORS.border
+            })
+            .style('opacity', 1)
     }
 
     function drawBaseLine(baseLinesGroup, value) {
-        const baseLineColor = value===0 ? 'black' : 'lightgray'
+        const baseLineColor = value === 0 ? COLORS.baseLineZero : COLORS.baseLine
 
         baseLinesGroup.append('circle')
             .classed('.zero-line', true)
+            .attrs({
+                r: SCALE.y(EXTREME_TEMP.min),
+                stroke: baseLineColor
+            })
+            .transition()
+            .duration(1500)
             .attrs({
                 r: SCALE.y(value),
                 fill: 'none',
@@ -164,8 +221,8 @@
             });
     }
 
-    function drawBaseLines(chart) {
-        const baseLinesGroup = chart.append('g')
+    function drawBaseLines(container) {
+        const baseLinesGroup = container.append('g')
             .classed('baseLinesGroup', true)
 
         d3.range(EXTREME_TEMP.min, EXTREME_TEMP.max, 5).map((value => {
@@ -173,16 +230,85 @@
         }))
     }
 
+    function drawChart(container, dataTemp) {
+        const radialScale = d3.radialLine()
+            .radius(function (dayTemp) {
+                return SCALE.y(dayTemp.tempAvg);
+            })
+            .angle(function (dayTemp, idx, arr) {
+                return idx / (arr.length - 1) * 2 * PI
+            })
+            .curve(d3.curveCardinalClosed)
+
+        const chartLine = container.append('g')
+            .classed('chart', true)
+            .append('path')
+            .datum(dataTemp)
+            .attrs({
+                fill: 'none',
+                stroke: COLORS.chart,
+                'stroke-width': 2,
+                d: d => radialScale(d)
+            })
+        const l = chartLine.node().getTotalLength();
+
+        chartLine
+            .attrs({
+                "stroke-dasharray": l,
+                "stroke-dashoffset": l
+            })
+            .style('opacity', 0)
+            .transition()
+            .duration(1500)
+            .attr("stroke-dashoffset", 0)
+            .style('opacity', 1)
+
+    }
+
+    function drawBarChart(container, dataTemp) {
+        container.append('g')
+            .classed('barChart', true)
+            .selectAll('.barChartBar')
+            .data(dataTemp)
+            .enter()
+            .append('line')
+            .attrs({
+                x1: 0,
+                y1: d => SCALE.y(EXTREME_TEMP.min),
+                x2: 0,
+                y2: d => SCALE.y(d.tempAvg),
+                stroke: COLORS.barChart,
+                transform: (d, idx, arr) => {
+                    return ` rotate(${SCALE.x(idx / arr.length) * (360 / (2 * PI))}) rotate(180) translate(200,0)`
+                }
+            })
+            .style('opacity', 0)
+            .transition()
+            .duration(500)
+            .delay((d, idx, arr) => {
+                    return idx / arr.length * 1000
+                }
+            )
+            .attrs({
+                transform: (d, idx, arr) => {
+                    return `rotate(${SCALE.x(idx / arr.length) * (360 / (2 * PI))}) rotate(180)`
+                }
+            })
+            .style('opacity', 1)
+    }
+
     d3.csv(URL, (rawData) => {
         const data = prepareData(rawData)
-        const chart = svg.append('g')
+        const container = svg.append('g')
             .attrs({
                 transform: `translate(${width / 2}, ${height / 2})`
             })
-        drawBorder(chart, BOUNDS)
-        drawMonthLabels(chart, data.months)
-        drawMonthBaseLines(chart, data.months)
-        drawBaseLines(chart)
+        drawBorder(container, BOUNDS)
+        drawMonthLabels(container, data.months)
+        drawMonthBaseLines(container, data.months)
+        drawBaseLines(container)
+        drawBarChart(container, data.temp)
+        drawChart(container, data.temp)
     })
 </script>
 </body>
